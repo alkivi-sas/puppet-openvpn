@@ -22,6 +22,8 @@ This will do the typical install, configure and service management.
 Class openvpn is automatically included, but need to change that.
 Automatic forwarding from vpn to local network  is put in place using alkivi-iptables package and sysctl configuration
 
+There is also a class alkivi_admin which create a vpn using puppet ssl keys
+
 
 ## Limitations
 
