@@ -1,0 +1,22 @@
+client
+dev <%= @dev_interface %>
+proto udp
+
+remote <%= @server %> <%= @port %>
+resolv-retry infinite
+
+nobind
+user nobody
+group nogroup
+
+persist-key
+persist-tun
+
+ca /var/lib/puppet/ssl/certs/ca.pem
+cert /var/lib/puppet/ssl/certs/<%= @customer_fqdn %>.pem
+key /var/lib/puppet/ssl/private_keys/<%= @customer_fqdn %>.pem
+
+#tls-auth ta.key 1
+
+comp-lzo
+verb 3

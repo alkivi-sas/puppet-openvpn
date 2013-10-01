@@ -1,0 +1,40 @@
+# networking
+port 1194
+proto udp
+dev <%= @dev_interfaces %>
+
+# cert from puppet
+ca <%= @ca_cert %>
+cert <%= @server_cert %>
+key <%= @server_key %>
+dh <%= @dh %> # This file is secret and should be shared with puppet
+
+# server conf
+server <%= @vpn_network %> <%= @vpn_netmask %>
+push "route <%= @local_network%> <%= @local_netmask%>"
+push "dhcp-option DOMAIN <%= @domain %>"
+push "dhcp-option DNS <%= @vpn_server_ip %>"
+push "dhcp-option DNS 91.121.161.184" # OVH 1
+push "dhcp-option DNS 91.121.164.227" # OVH 2
+
+#  this instructs the clients to "sign off" when they disconnect.
+push "explicit-exit-notify 3"
+
+# client dir conf
+client-config-dir <%= @clients_dir %>
+
+
+# misc
+keepalive 10 120
+#tls-auth <%= @tls_auth %> 0 # This file is secret and should be shared with puppet
+comp-lzo
+
+user nobody
+group nogroup
+
+persist-key
+persist-tun
+
+status openvpn-status.log
+
+verb 3

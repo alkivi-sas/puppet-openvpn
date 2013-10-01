@@ -1,0 +1,9 @@
+*filter
+-A INPUT -p udp --dport 1194 -j ACCEPT -m comment --comment "vpn"
+-A FORWARD -i <%= @dev_interfaces %> -j ACCEPT
+-A FORWARD -i eth0 -j ACCEPT
+COMMIT
+
+*nat
+-A POSTROUTING -s <%= @vpn_network %>/<%= @vpn_netmask %> -o eth0 -m comment --comment "vpn" -j MASQUERADE
+COMMIT

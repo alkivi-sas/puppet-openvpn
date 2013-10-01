@@ -1,0 +1,16 @@
+client
+dev tun
+proto udp
+remote <%= @customer_fqdn %>
+nobind
+
+persist-key
+persist-tun
+
+
+ca <%= @short_ca_cert %> 
+cert CHANGEME.crt
+key CHANGEME.key
+
+comp-lzo
+verb 3

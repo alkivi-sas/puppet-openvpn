@@ -1,0 +1,173 @@
+#!/bin/sh
+
+set -e
+
+#
+#   Display help
+#
+help()
+{
+cat <<EOF
+$PROGNAME : [OPTIONS]
+  --initca          Create initial CA file
+  --server			Create server certificate and sign it
+  --client name		Create client certificate, sign it and put zip containing all data
+  --config			Path to .cnf file (default to /home/alkivi/vpn/alkivi.cnf)
+  --help            Print this
+
+EOF
+}
+
+
+ACTION=
+
+ROOT_DIR="<%= @basedir %>"
+CA_NAME="alkivi_ca"
+KEY_NAME="server"
+KEY_EXPIRE=3650
+CA_EXPIRE=3650
+KEY_SIZE=1024
+KEY_CONFIG="<%= @openssl_config %>"
+KEY_EMAIL="admin.alkivi.fr"
+KEY_COMMON_NAME="<%= @customer_fqdn %>"
+
+# Parse command line
+while [ "$#" -gt 0 ] ; do
+    case $1 in
+        --help)
+            help
+            exit 0
+            ;;
+        --initca)
+			ACTION="initca"
+            ;;
+		--server)
+			ACTION="server"
+			;;
+		--client)
+			ACTION="client"
+			KEY_NAME=$2
+			if [ -z "$KEY_NAME" ]; then
+				echo "You must specify a name when using --client"
+				exit 1
+			fi
+			KEY_COMMON_NAME=$2
+			shift
+			;;
+		--builddh)
+			ACTION="builddh"
+			;;
+		--rootdir)
+			ROOTDIR=$2
+			shift;
+			;;
+		--config)
+			KEY_CONFIG=$2
+			shift
+			;;
+		--key_size)
+			KEY_SIZE=$2
+			if [ $KEY_SIZE < 1024 ]; then
+				echo "key_size must be a least 1024";
+				exit 1;
+			fi
+			shift
+			;;
+		--key_expire)
+			KEY_EXPIRE=$2
+			shift
+			;;
+		--key_email)
+			KEY_EMAIL=$2
+			if [ -e "$KEY_EMAIL" ]; then
+				echo "ca_name must be present !"
+				exit 1
+			fi
+			shift
+			;;
+		--ca_expire)
+			CA_EXPIRE=$2
+			shift
+			;;
+		--ca_name)
+			CA_NAME=$2
+			if [ -e "$CA_NAME" ]; then
+				echo "ca_name must be present !"
+				exit 1
+			fi
+			shift
+			;;
+		*)
+            echo "Unknown option '$1'"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+
+if [ -z $ACTION ]; then
+	echo "You must choose --initca --server or --client name"
+	exit 1
+fi
+
+if [ ! -d $ROOTDIR ]; then
+	echo "rootdir must exist"
+	exit 1
+fi
+
+if [ ! -e $KEY_CONFIG ]; then
+	echo "config must exist"
+	exit 1
+fi
+
+# Export all values that needs export
+export ROOT_DIR KEY_NAME KEY_SIZE KEY_EMAIL KEY_COMMON_NAME
+
+cd $ROOT_DIR
+
+############################################################################
+if [ "$ACTION" = "initca" ]; then 
+
+
+	# Generate certificate
+	openssl req -batch -days $CA_EXPIRE -nodes -new -newkey rsa:$KEY_SIZE -sha1 \
+		 -x509 -keyout "$CA_NAME.key" -out "$CA_NAME.crt" -config "$KEY_CONFIG"
+
+	# Restrict access to the private key
+	chmod 0600 "$CA_NAME.key"
+
+############################################################################
+elif [ "$ACTION" = "server" ]; then
+
+	openssl req -batch -days $KEY_EXPIRE -nodes -new -newkey rsa:$KEY_SIZE \
+				-keyout "$KEY_NAME.key" -out "$KEY_NAME.csr" -extensions server -config "$KEY_CONFIG"
+
+	openssl ca -batch -days $KEY_EXPIRE -out "$KEY_NAME.crt" \
+		-in "$KEY_NAME.csr" -extensions server -md sha1 -config "$KEY_CONFIG"
+
+	# Restrict access to private key
+	chmod 0600 "$KEY_NAME.key"
+
+############################################################################
+elif [ "$ACTION" = "client" ]; then
+
+	openssl req -batch -days $KEY_EXPIRE -nodes -new -newkey rsa:$KEY_SIZE \
+				-keyout "$KEY_NAME.key" -out "$KEY_NAME.csr" -config "$KEY_CONFIG"
+
+	openssl ca -batch -days $KEY_EXPIRE -out "$KEY_NAME.crt" \
+		-in "$KEY_NAME.csr" -md sha1 -config "$KEY_CONFIG"
+
+	mkdir $KEY_NAME
+	sed 's/CHANGEME/'$KEY_NAME'/' sample.conf > $KEY_NAME/$KEY_NAME.conf
+	mv $KEY_NAME.crt $KEY_NAME.key $KEY_NAME
+	cp $CA_NAME.crt $KEY_NAME
+
+    zip -r $KEY_NAME.zip $KEY_NAME
+
+############################################################################
+elif [ "$ACTION" = "builddh" ]; then
+    openssl dhparam -out dh.pem ${KEY_SIZE}
+fi
+
+exit 0

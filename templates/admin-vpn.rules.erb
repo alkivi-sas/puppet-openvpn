@@ -1,0 +1,3 @@
+*filter
+-A INPUT -i <%= @dev_interface %> -j ACCEPT -m comment --comment "Allow alkivi admin traffic"
+COMMIT
