@@ -30,6 +30,8 @@ define openvpn::server (
   $ca_expire      = 3650,
   $key_expire     = 3650,
   $key_size       = 2048,
+
+  $firewall       = true,
 ) {
 
   # params check
@@ -174,10 +176,13 @@ define openvpn::server (
   ############################################
   # iptables
   ############################################
-  file { '/etc/iptables.d/50-vpn.rules.ipv4':
-    content => template('openvpn/vpn.rules.ipv4.erb'),
-    require => Package['alkivi-iptables'],
-    notify  => Service['alkivi-iptables'],
+  if($firewall)
+  {
+    file { '/etc/iptables.d/50-vpn.rules.ipv4':
+      content => template('openvpn/vpn.rules.ipv4.erb'),
+      require => Package['alkivi-iptables'],
+      notify  => Service['alkivi-iptables'],
+    }
   }
 
   ############################################
